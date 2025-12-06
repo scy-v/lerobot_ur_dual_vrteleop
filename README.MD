@@ -151,7 +151,7 @@ lerobot-edit-dataset
 2. **Left Controller**
    1. **X Button**: Restart the recording of the current episode.
    2. **Y Button**: End recording, save data, and exit.
-   3. **Menu Button**: Throws an exception and terminates the program, with an option to delete the current recorded data (Y/N).
+   3. **Menu Button/Menu+A Button**: Throws an exception and terminates the program, with an option to delete the current recorded data (Y/N).
    4. **Trigger**: Press to control the robot; release to stop control.
    5. **Grip Button**: Press to close the gripper; release to open it.
 

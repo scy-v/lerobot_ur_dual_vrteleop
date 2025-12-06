@@ -259,7 +259,6 @@ def run_record(record_cfg: RecordConfig):
                 display_data=record_cfg.display,
             )
 
-            check_keyboard_interrupt(events)
             if events["rerecord_episode"]:
                 logging.info("Re-recording episode")
                 events["rerecord_episode"] = False
@@ -275,7 +274,9 @@ def run_record(record_cfg: RecordConfig):
             if not events["stop_recording"] and (episode_idx < record_cfg.num_episodes - 1 or events["rerecord_episode"]):
                 logging.info("Please press the 'B' button on the VR controller to `reset` the environment.")
                 while not xr_client.get_button_state_by_name("B"):
+                    check_keyboard_interrupt(events)
                     time.sleep(0.1) 
+
                 logging.info("====== [RESET] Resetting the environment ======")
                 record_loop(
                     robot=robot,
@@ -289,9 +290,10 @@ def run_record(record_cfg: RecordConfig):
                     single_task=record_cfg.task_description,
                     display_data=record_cfg.display,
                 )
-                check_keyboard_interrupt(events)
+
                 logging.info("Please press the 'B' button on the VR controller to start the `next episode`.")
                 while not xr_client.get_button_state_by_name("B"):
+                    check_keyboard_interrupt(events)
                     time.sleep(0.1)
 
             ensure_events_flag(events, False) # ensure flags are reset
