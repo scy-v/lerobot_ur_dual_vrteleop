@@ -19,6 +19,7 @@ Shell Tools:
 
 Test Commands:
   test-gripper-ctrl     Run gripper control command (operate the gripper)
+  test-ur-freedrive     Run UR freedrive command (enter/exit freedrive mode)
 
 --------------------------------------------------
  Tip: Use 'vr-help' anytime to see this summary.
