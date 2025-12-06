@@ -96,7 +96,8 @@ huggingface-cli whoami  # Verify successful login
 ### 3.2 Start Recording
 1. Turn on **Remote Control** on the UR5e teach pendant.  
 2. Verify that the parameters in `cfg.yaml` are correct.  
-3. To ensure standardized data collection, please read `9. Dataset Naming and Recording Details` before running the following command:
+3. To ensure standardized data collection, please read `9. Dataset Naming and Recording Details`.
+4. Make sure VR device is connected to the computer, then run the following commands:
 ```bash
 vr-record
 ```
