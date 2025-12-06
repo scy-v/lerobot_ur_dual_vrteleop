@@ -25,6 +25,8 @@ setup(
 
             # test commands (testing scripts)
             "test-gripper-ctrl = scripts.test.gripper_ctrl:main",
+            "test-ur-freedrive = scripts.test.ur_freedrive:main",
+
             # unified help command
             "vr-help = scripts.help.help_info:main",
         ]
