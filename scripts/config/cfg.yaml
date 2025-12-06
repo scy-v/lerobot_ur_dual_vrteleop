@@ -1,0 +1,78 @@
+record:
+  repo_id: &repo_id "scylearning/pick_greencube_into_trashbin" 
+  # repo_id: &repo_id "scylearning/pick_greencube_into_trashbin" 
+  # Suggested format: <hf_username>/<description>, description = task.description -> Verb_SourceObject_prep_TargetObject
+  # e.g. Pick up the green cube and put it into the trash bin -> pick_greencube_into_trashbin
+  debug: &debug False # if True, robot will not execute any actions, but gripper can still be controlled
+  user_notes:  # any additional notes about the dataset
+  fps: 15 # dataset and camera frame rate
+
+  robot:
+    left_robot_ip: &left_ip "192.168.131.11" # robot_ip
+    right_robot_ip: &right_ip "192.168.131.12" # robot_ip
+    servo_time: &servo_time 0.017
+    gain: 300
+    lookahead_time: 0.1
+    gripper:
+      use_gripper: &use_gripper True
+      close_threshold: 0.7 # threshold to determine gripper open/close
+      gripper_bin_threshold: 0.98 # threshold to determine gripper is closed
+      left_gripper_port: &left_gripper_port "/dev/ur7e_left_gripper" # gripper_port
+      right_gripper_port: &right_gripper_port "/dev/ur7e_right_gripper" # gripper_port
+      gripper_reverse: &gripper_reverse False  # If gripper moves opposite, flip this value
+
+  teleop:
+    control_mode: "vrteleop"
+    scale_factor: 0.8
+    R_headset_world: [-90, 0, 90]  # ZYX Euler angles in degrees
+    robot:
+      left_robot_ip: *left_ip
+      right_robot_ip: *right_ip
+    placo:
+      visualize_placo: False
+      servo_time: *servo_time
+      robot_urdf_path: assets/ur_urdf/dual_ur5e.urdf
+    gripper:
+      trigger_reverse: True
+      trigger_threshold: 0.5
+      close_position: 0
+      open_position: 1
+
+  task:
+    # description: "Pick up the green cube and put it into the trash bin." # task description
+    description: "Open the cabinet, place the reagent bottle inside, and close the cabinet." # task description
+    num_episodes: 100 # number of episodes to record
+    display: True # Whether to display the data during recording
+    resume: False
+    resume_dataset: scylearning/open_cabinet_place_reagent_bottle_inside_close_cabinet_20251119_v01 # dataset to resume from if resume is True
+
+  time:
+    episode_time_sec: 6000 # max time per episode in seconds
+    reset_time_sec: 6000 # max time to reset between episodes in seconds
+    save_meta_period: 1 # Save metadata after every N episodes
+
+  cameras:
+    left_wrist_cam_serial: "213522072373" # left wrist camera serial number
+    right_wrist_cam_serial: "213522071674" # right wrist camera serial number
+    exterior_cam_serial: "151322070364" # exterior camera serial number
+    width: 424 # 640 424
+    height: 240 # 360 240
+
+  storage:
+    push_to_hub: False # whether to push the dataset to your huggingface repo after recording
+
+replay:
+  dataset_name: scylearning/test_20251206_v01
+  episode_idx: 0 # episode index to replay
+  debug: *debug
+  robot:
+    left_robot_ip: *left_ip
+    right_robot_ip: *right_ip
+    left_gripper_port: *left_gripper_port
+    right_gripper_port: *right_gripper_port
+    use_gripper: *use_gripper
+    gripper_reverse: *gripper_reverse
+
+visualize:
+  dataset_name: scylearning/test_20251206_v01
+  episode_index: 0 # episode index to visualize

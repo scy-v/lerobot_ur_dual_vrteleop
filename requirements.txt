@@ -1,0 +1,6 @@
+# Install the subpackages in editable mode
+-e ./lerobot_robot_ur
+-e ./lerobot_teleoperator_vr
+
+# Install the main project in editable mode
+-e .
