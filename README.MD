@@ -1,6 +1,6 @@
 # UR Dual-Arm VR Teleoperation Data Collection
 <p align="center">
-  <img src="assets/robot.png" alt="Record" width="600">
+  <img src="assets/robot.png" alt="Record" width="300">
   <br>
 </p>
 

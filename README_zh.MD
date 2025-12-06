@@ -1,6 +1,6 @@
 # UR双臂VR遥操作数据采集与回放指南
 <p align="center">
-  <img src="assets/robot.png" alt="Record" width="600">
+  <img src="assets/robot.png" alt="Record" width="300">
   <br>
 </p>
 
