@@ -105,7 +105,8 @@ class UR(Robot):
                 gripper_position = 1 - gripper_position
 
             if gripper_position != self._left_last_gripper_position:
-                self._left_gripper.set_pos(val=int(1000 * gripper_position), blocking=False)
+                for _ in range(4):  
+                    self._left_gripper.set_pos(val=int(1000 * gripper_position), blocking=False)
                 self._left_last_gripper_position = gripper_position
 
             gripper_pos = self._left_gripper.read_pos() / 1000.0
@@ -123,7 +124,8 @@ class UR(Robot):
                 gripper_position = 1 - gripper_position
 
             if gripper_position != self._right_last_gripper_position:
-                self._right_gripper.set_pos(val=int(1000 * gripper_position), blocking=False)
+                for _ in range(4):
+                    self._right_gripper.set_pos(val=int(1000 * gripper_position), blocking=False) 
                 self._right_last_gripper_position = gripper_position
 
             gripper_pos = self._right_gripper.read_pos() / 1000.0
@@ -188,6 +190,7 @@ class UR(Robot):
         if "left_gripper_position" in action and "right_gripper_position" in action and self.cfg.use_gripper:
             self._left_gripper_position = action["left_gripper_position"]
             self._right_gripper_position = action["right_gripper_position"]
+
         return action
 
     def get_observation(self) -> dict[str, Any]:

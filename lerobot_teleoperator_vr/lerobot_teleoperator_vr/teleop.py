@@ -344,7 +344,6 @@ class VRTeleop(Teleoperator):
         logger.info(f"[INFO] ===== All {self.name} connections have been closed =====")
 
 if __name__ == "__main__":
-    import numpy as np
     logging.basicConfig(level=logging.INFO, format='%(message)s')
     logger = logging.getLogger(__name__)
 
