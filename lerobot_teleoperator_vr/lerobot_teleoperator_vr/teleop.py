@@ -52,6 +52,17 @@ DEFAULT_MANIPULATOR_CONFIG = {
     },
 }
 
+ARM_MAP = {
+    "left_arm": {
+        "last": "_last_left_trigger_val",
+        "pos": "left_gripper_pos",
+    },
+    "right_arm": {
+        "last": "_last_right_trigger_val",
+        "pos": "right_gripper_pos",
+    },
+}
+
 class VRTeleop(Teleoperator):
     """
     VR Teleop class for controlling a single robot arm.
@@ -222,19 +233,21 @@ class VRTeleop(Teleoperator):
             else:
                 trigger_val = self.cfg.open_position
 
-            if arm_name == "left_arm":
-                if self._last_left_trigger_val == 1 and trigger_val == 0 and self.left_gripper_pos == self.cfg.open_position:
-                    self.left_gripper_pos = self.cfg.close_position
-                elif self._last_left_trigger_val == 1 and trigger_val == 0 and self.left_gripper_pos == self.cfg.close_position:
-                    self.left_gripper_pos = self.cfg.open_position
-                self._last_left_trigger_val = trigger_val
-            elif arm_name == "right_arm":
-                if self._last_right_trigger_val == 1 and trigger_val == 0 and self.right_gripper_pos == self.cfg.open_position:
-                    self.right_gripper_pos = self.cfg.close_position
-                elif self._last_right_trigger_val == 1 and trigger_val == 0 and self.right_gripper_pos == self.cfg.close_position:
-                    self.right_gripper_pos = self.cfg.open_position
-                self._last_right_trigger_val = trigger_val
+            last_attr = ARM_MAP[arm_name]["last"]
+            pos_attr = ARM_MAP[arm_name]["pos"]
 
+            last_trigger = getattr(self, last_attr)
+            gripper_pos = getattr(self, pos_attr)
+
+            if last_trigger == 1 and trigger_val == 0:
+                gripper_pos = (
+                    self.cfg.close_position
+                    if gripper_pos == self.cfg.open_position
+                    else self.cfg.open_position
+                )
+
+            setattr(self, pos_attr, gripper_pos)
+            setattr(self, last_attr, trigger_val)
 
             if active:
                 if self.init_ee_xyz[arm_name] is None:
