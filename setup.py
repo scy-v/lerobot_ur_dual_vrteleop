@@ -9,6 +9,9 @@ setup(
     python_requires=">=3.10",
     packages=find_packages(where=".", include=["scripts", "scripts.*"]),
     include_package_data=True,
+    install_requires=[
+    "send2trash"
+    ],
     scripts=[
         "scripts/tools/map_gripper.sh",
     ],

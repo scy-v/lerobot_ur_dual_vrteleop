@@ -1,5 +1,5 @@
 record:
-  repo_id: &repo_id "scylearning/pick_greencube_into_trashbin" 
+  repo_id: &repo_id "scylearning/pick_test_tube_brush" #pick_test_tube_brush_and_clean_test_tube
   # repo_id: &repo_id "scylearning/pick_greencube_into_trashbin" 
   # Suggested format: <hf_username>/<description>, description = task.description -> Verb_SourceObject_prep_TargetObject
   # e.g. Pick up the green cube and put it into the trash bin -> pick_greencube_into_trashbin
@@ -8,8 +8,10 @@ record:
   fps: 15 # dataset and camera frame rate
 
   robot:
-    left_robot_ip: &left_ip "192.168.131.11" # robot_ip
-    right_robot_ip: &right_ip "192.168.131.12" # robot_ip
+    left_robot_ip: &left_ip "192.168.131.12" # robot_ip
+    right_robot_ip: &right_ip "192.168.131.11" # robot_ip
+    left_init_joints: [0.15039682388305664, -1.6110626659789027, -2.5577666759490967, -0.7846527856639405, 3.985585927963257, -0.21246177354921514] # left robot reset joint positions
+    right_init_joints: [-0.13447505632509404, -1.5634546180120488, 2.659518305455343, -2.423399110833639, 2.339691638946533, 0.25420689582824707] # right robot reset joint positions
     servo_time: &servo_time 0.017
     gain: 300
     lookahead_time: 0.1
@@ -40,11 +42,11 @@ record:
 
   task:
     # description: "Pick up the green cube and put it into the trash bin." # task description
-    description: "Open the cabinet, place the reagent bottle inside, and close the cabinet." # task description
+    description: "Pick up the test tube brush." # task description
     num_episodes: 100 # number of episodes to record
     display: True # Whether to display the data during recording
     resume: False
-    resume_dataset: scylearning/open_cabinet_place_reagent_bottle_inside_close_cabinet_20251119_v01 # dataset to resume from if resume is True
+    resume_dataset: scylearning/pick_test_tube_brush_20251217_v01 #dataset to resume from if resume is True
 
   time:
     episode_time_sec: 6000 # max time per episode in seconds
@@ -52,9 +54,9 @@ record:
     save_meta_period: 1 # Save metadata after every N episodes
 
   cameras:
-    left_wrist_cam_serial: "213522072373" # left wrist camera serial number
-    right_wrist_cam_serial: "213522071674" # right wrist camera serial number
-    exterior_cam_serial: "151322070364" # exterior camera serial number
+    left_wrist_cam_serial: "347622073802" # left wrist camera serial number
+    right_wrist_cam_serial: "348122071700" # right wrist camera serial number
+    exterior_cam_serial: "213522070689" # exterior camera serial number
     width: 424 # 640 424
     height: 240 # 360 240
 
@@ -74,5 +76,5 @@ replay:
     gripper_reverse: *gripper_reverse
 
 visualize:
-  dataset_name: scylearning/test_20251206_v01
-  episode_index: 0 # episode index to visualize
+  dataset_name: scylearning/pick_test_tube_brush_and_clean_test_tube_20251210_v01
+  episode_index: 30 # episode index to visualize

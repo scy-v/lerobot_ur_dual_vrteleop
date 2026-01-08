@@ -23,7 +23,7 @@ class UR(Robot):
 
         self.cfg = config
         self._is_connected = False
-        self._arm = {}
+        self.arm = {}
         self._gripper = None
         self._initial_pose = None
         self._prev_observation = None
@@ -42,8 +42,8 @@ class UR(Robot):
             raise DeviceAlreadyConnectedError(f"{self.name} is already connected.")
 
         # Connect to robot
-        self._arm['left_rtde_r'], self._arm['left_rtde_c'] = self._check_ur_connection(self.cfg.left_robot_ip, "left")
-        self._arm['right_rtde_r'], self._arm['right_rtde_c'] = self._check_ur_connection(self.cfg.right_robot_ip, "right")
+        self.arm['left_rtde_r'], self.arm['left_rtde_c'] = self._check_ur_connection(self.cfg.left_robot_ip, "left")
+        self.arm['right_rtde_r'], self.arm['right_rtde_c'] = self._check_ur_connection(self.cfg.right_robot_ip, "right")
 
         # Initialize gripper
         if self.cfg.use_gripper:
@@ -62,7 +62,6 @@ class UR(Robot):
 
         self.is_connected = True
         logger.info(f"[INFO] {self.name} env initialization completed successfully.\n")
-
 
     def _check_gripper_connection(self, port: str, gripper_name: str):
         logger.info(f"\n===== [GRIPPER] Initializing {gripper_name} gripper...")
@@ -178,14 +177,14 @@ class UR(Robot):
         joint_positions = [
             action[f"{arm}_joint_{i+1}.pos"] for arm in ["left", "right"] for i in range(self._num_joints)
         ]
-        if not self.cfg.debug:
-            t_start = self._arm["left_rtde_c"].initPeriod()
-            self._arm["left_rtde_c"].servoJ(joint_positions[:self._num_joints], self._velocity, self._acceleration, self.cfg.servo_time, self.cfg.lookahead_time, self.cfg.gain)
-            self._arm["left_rtde_c"].waitPeriod(t_start)
+        if not self.cfg.debug:       
+            t_start = self.arm["left_rtde_c"].initPeriod()
+            self.arm["left_rtde_c"].servoJ(joint_positions[:self._num_joints], self._velocity, self._acceleration, self.cfg.servo_time, self.cfg.lookahead_time, self.cfg.gain)
+            self.arm["left_rtde_c"].waitPeriod(t_start)
 
-            t_start = self._arm["right_rtde_c"].initPeriod()
-            self._arm["right_rtde_c"].servoJ(joint_positions[self._num_joints:], self._velocity, self._acceleration, self.cfg.servo_time, self.cfg.lookahead_time, self.cfg.gain)
-            self._arm["right_rtde_c"].waitPeriod(t_start)
+            t_start = self.arm["right_rtde_c"].initPeriod()
+            self.arm["right_rtde_c"].servoJ(joint_positions[self._num_joints:], self._velocity, self._acceleration, self.cfg.servo_time, self.cfg.lookahead_time, self.cfg.gain)
+            self.arm["right_rtde_c"].waitPeriod(t_start)
 
         if "left_gripper_position" in action and "right_gripper_position" in action and self.cfg.use_gripper:
             self._left_gripper_position = action["left_gripper_position"]
@@ -198,36 +197,36 @@ class UR(Robot):
             raise DeviceNotConnectedError(f"{self} is not connected.")
         
         # Read joint positions
-        left_qpos = self._arm["left_rtde_r"].getActualQ()
+        left_qpos = self.arm["left_rtde_r"].getActualQ()
 
-        right_qpos = self._arm["right_rtde_r"].getActualQ()
+        right_qpos = self.arm["right_rtde_r"].getActualQ()
         # Read joint velocities
-        left_qd = self._arm["left_rtde_r"].getActualQd()
-        right_qd = self._arm["right_rtde_r"].getActualQd()
+        left_qd = self.arm["left_rtde_r"].getActualQd()
+        right_qd = self.arm["right_rtde_r"].getActualQd()
 
         # Read joint accelerations
-        left_qdd = self._arm["left_rtde_r"].getTargetQdd()
-        right_qdd = self._arm["right_rtde_r"].getTargetQdd()
+        left_qdd = self.arm["left_rtde_r"].getTargetQdd()
+        right_qdd = self.arm["right_rtde_r"].getTargetQdd()
 
         # Read joint forces
-        left_qfrc = self._arm["left_rtde_c"].getJointTorques()
-        right_qfrc = self._arm["right_rtde_c"].getJointTorques()
+        left_qfrc = self.arm["left_rtde_c"].getJointTorques()
+        right_qfrc = self.arm["right_rtde_c"].getJointTorques()
 
         # Read tcp pose
-        left_tcp_pose = self._arm["left_rtde_r"].getActualTCPPose()
-        right_tcp_pose = self._arm["right_rtde_r"].getActualTCPPose()
+        left_tcp_pose = self.arm["left_rtde_r"].getActualTCPPose()
+        right_tcp_pose = self.arm["right_rtde_r"].getActualTCPPose()
 
         # Read tcp speed
-        left_tcp_vel = self._arm["left_rtde_r"].getActualTCPSpeed()
-        right_tcp_vel = self._arm["right_rtde_r"].getActualTCPSpeed()
+        left_tcp_vel = self.arm["left_rtde_r"].getActualTCPSpeed()
+        right_tcp_vel = self.arm["right_rtde_r"].getActualTCPSpeed()
 
         # Read tcp acceleration
-        left_tcp_acc = self._arm["left_rtde_r"].getActualToolAccelerometer()
-        right_tcp_acc = self._arm["right_rtde_r"].getActualToolAccelerometer()
+        left_tcp_acc = self.arm["left_rtde_r"].getActualToolAccelerometer()
+        right_tcp_acc = self.arm["right_rtde_r"].getActualToolAccelerometer()
 
         # Read tcp force
-        left_tcp_frc = self._arm["left_rtde_r"].getActualTCPForce()
-        right_tcp_frc = self._arm["right_rtde_r"].getActualTCPForce()
+        left_tcp_frc = self.arm["left_rtde_r"].getActualTCPForce()
+        right_tcp_frc = self.arm["right_rtde_r"].getActualTCPForce()
 
         # Prepare observation dictionary
         obs_dict = {}
@@ -285,11 +284,11 @@ class UR(Robot):
         if not self.is_connected:
             return
 
-        if self._arm is not None:
-            self._arm["left_rtde_c"].disconnect()
-            self._arm["left_rtde_r"].disconnect()
-            self._arm["right_rtde_r"].disconnect()
-            self._arm["right_rtde_r"].disconnect()
+        if self.arm is not None:
+            self.arm["left_rtde_c"].disconnect()
+            self.arm["left_rtde_r"].disconnect()
+            self.arm["right_rtde_r"].disconnect()
+            self.arm["right_rtde_r"].disconnect()
 
         for cam in self.cameras.values():
             cam.disconnect()

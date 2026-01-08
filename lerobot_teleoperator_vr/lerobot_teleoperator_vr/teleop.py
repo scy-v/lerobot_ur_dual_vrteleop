@@ -72,6 +72,8 @@ class VRTeleop(Teleoperator):
         self.init_controller_quat = {}
         self._is_connected = False
         self._stop_event = threading.Event()
+        self._last_left_trigger_val = 1.0
+        self._last_right_trigger_val = 1.0
         self.manipulator_config = DEFAULT_MANIPULATOR_CONFIG
         self.R_headset_world = R.from_euler('ZYX', self.cfg.R_headset_world, degrees=True).as_matrix()
         self.robot_urdf_path = Path(__file__).parents[2] / self.cfg.robot_urdf_path
@@ -205,12 +207,10 @@ class VRTeleop(Teleoperator):
     def _update_robot_qpos_from_xr(self):
         current_q_left_actual = self._arm["left_rtde_r"].getActualQ()
         current_q_right_actual = self._arm["right_rtde_r"].getActualQ()
-
         self.placo_robot.state.q[7:13] = np.array(current_q_left_actual)
         self.placo_robot.state.q[13:19] = np.array(current_q_right_actual)
 
         self.placo_robot.update_kinematics()
-
         for arm_name, config in self.manipulator_config.items():
             xr_grip_val = self.xr_client.get_key_value_by_name(config["control_trigger"])
             active = xr_grip_val > (1.0 - CONTROLLER_DEADZONE)
@@ -223,9 +223,18 @@ class VRTeleop(Teleoperator):
                 trigger_val = self.cfg.open_position
 
             if arm_name == "left_arm":
-                self.left_gripper_pos = trigger_val
+                if self._last_left_trigger_val == 1 and trigger_val == 0 and self.left_gripper_pos == self.cfg.open_position:
+                    self.left_gripper_pos = self.cfg.close_position
+                elif self._last_left_trigger_val == 1 and trigger_val == 0 and self.left_gripper_pos == self.cfg.close_position:
+                    self.left_gripper_pos = self.cfg.open_position
+                self._last_left_trigger_val = trigger_val
             elif arm_name == "right_arm":
-                self.right_gripper_pos = trigger_val
+                if self._last_right_trigger_val == 1 and trigger_val == 0 and self.right_gripper_pos == self.cfg.open_position:
+                    self.right_gripper_pos = self.cfg.close_position
+                elif self._last_right_trigger_val == 1 and trigger_val == 0 and self.right_gripper_pos == self.cfg.close_position:
+                    self.right_gripper_pos = self.cfg.open_position
+                self._last_right_trigger_val = trigger_val
+
 
             if active:
                 if self.init_ee_xyz[arm_name] is None:
@@ -253,7 +262,7 @@ class VRTeleop(Teleoperator):
 
             else:  # Not active
                 if self.init_ee_xyz[arm_name] is not None:
-                    print(f"{arm_name} deactivated.")
+                    # print(f"{arm_name} deactivated.")
                     self.init_ee_xyz[arm_name] = None
                     self.init_ee_quat[arm_name] = None
                     self.init_controller_xyz[arm_name] = None
@@ -266,7 +275,6 @@ class VRTeleop(Teleoperator):
 
             self.target_left_q = self.placo_robot.state.q[7:13].copy()
             self.target_right_q = self.placo_robot.state.q[13:19].copy()
-
             if self.cfg.visualize_placo and hasattr(self, "placo_vis"):
                 self.placo_vis.display(self.placo_robot.state.q)
                 for name, config in self.manipulator_config.items():
@@ -281,6 +289,11 @@ class VRTeleop(Teleoperator):
         except Exception as e:
             print(f"An unexpected error occurred in IK: {e}. Returning last known good joint positions.")
 
+    def reset_placo_effector(self):
+        for name, config in self.manipulator_config.items():
+            T_world_ee_current = self.placo_robot.get_T_world_frame(config["link_name"])
+            self.effector_task[name].T_world_frame = T_world_ee_current
+            
     def _process_xr_pose(self, xr_pose, arm_name: str):
         """Process the current XR controller pose, similar to MujocoTeleopController."""
         # xr_pose is typically [tx, ty, tz, qx, qy, qz, qw]

@@ -11,10 +11,12 @@ from lerobot.processor import make_default_processors
 from lerobot.utils.visualization_utils import init_rerun
 from lerobot.utils.control_utils import init_keyboard_listener
 import shutil
+from send2trash import send2trash
 import time
 import signal
 import os
 import threading
+from rtde_control import RTDEControlInterface
 import termios, sys
 from xrobotoolkit_teleop.common.xr_client import XrClient
 from lerobot.utils.constants import HF_LEROBOT_HOME
@@ -62,6 +64,8 @@ class RecordConfig:
         robot_gripper = robot["gripper"]
         self.left_robot_ip: str = robot["left_robot_ip"]
         self.right_robot_ip: str = robot["right_robot_ip"]
+        self.left_init_joints: list[float] = robot["left_init_joints"]
+        self.right_init_joints: list[float] = robot["right_init_joints"]
         self.robot_servo_time: float = robot["servo_time"]
         self.gain: float = robot["gain"]
         self.lookahead_time: float = robot["lookahead_time"]
@@ -101,7 +105,7 @@ def handle_incomplete_dataset(dataset_path):
         ans = input("Do you want to delete it? (y/n): ").strip().lower()
         if ans == "y":
             logging.info(f"====== [DELETE] Removing folder: {dataset_path} ======")
-            shutil.rmtree(dataset_path, ignore_errors=True)  # Delete only this specific dataset folder
+            send2trash(str(dataset_path))  # send to trash instead of permanent delete
             logging.info("====== [DONE] Incomplete dataset folder deleted successfully. ======")
         else:
             logging.info("====== [KEEP] Incomplete dataset folder retained, please check manually. ======")
@@ -130,6 +134,17 @@ def ensure_events_flag(events: Dict[str, Any], flag: bool = False):
 def check_keyboard_interrupt(events: Dict[str, Any]):
     if events["keyboard_interrupt"]:
         os.kill(os.getpid(), signal.SIGINT)
+
+def reset_to_init_joints(record_cfg: RecordConfig, robot: UR, teleop: VRTeleop, first_time: bool = True):
+    logging.info(f"Resetting to initial joint positions: {record_cfg.left_init_joints}, {record_cfg.right_init_joints}")
+    robot.arm["left_rtde_c"].servoStop()
+    robot.arm["right_rtde_c"].servoStop()
+    robot.arm["left_rtde_c"].moveJ(record_cfg.left_init_joints)
+    robot.arm["right_rtde_c"].moveJ(record_cfg.right_init_joints)
+    if not first_time:
+        teleop.reset_placo_effector()
+    time.sleep(0.5)
+    logging.info("Reached initial position.")
 
 def run_record(record_cfg: RecordConfig):
     try:
@@ -233,6 +248,7 @@ def run_record(record_cfg: RecordConfig):
         teleop_action_processor, robot_action_processor, robot_observation_processor = make_default_processors()
 
         robot.connect()
+        reset_to_init_joints(record_cfg, robot, teleop, first_time=True)
         teleop.connect()
         # listen the xrclient input
         stop_signal = threading.Event()
@@ -264,6 +280,7 @@ def run_record(record_cfg: RecordConfig):
                 events["rerecord_episode"] = False
                 events["exit_early"] = False
                 dataset.clear_episode_buffer()
+                reset_to_init_joints(record_cfg, robot, teleop, first_time=False)
                 continue
 
             dataset.save_episode()
@@ -278,6 +295,7 @@ def run_record(record_cfg: RecordConfig):
                     time.sleep(0.1) 
 
                 logging.info("====== [RESET] Resetting the environment ======")
+                logging.info("Please press the 'A' button on the VR controller to end the VR reset.")
                 record_loop(
                     robot=robot,
                     events=events,
@@ -291,7 +309,9 @@ def run_record(record_cfg: RecordConfig):
                     display_data=record_cfg.display,
                 )
 
+                reset_to_init_joints(record_cfg, robot, teleop, first_time=False)
                 logging.info("Please press the 'B' button on the VR controller to start the `next episode`.")
+
                 while not xr_client.get_button_state_by_name("B"):
                     check_keyboard_interrupt(events)
                     time.sleep(0.1)
