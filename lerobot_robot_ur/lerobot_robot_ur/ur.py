@@ -8,6 +8,8 @@ from rtde_receive import RTDEReceiveInterface
 from lerobot.cameras import make_cameras_from_configs
 from lerobot.utils.errors import DeviceNotConnectedError, DeviceAlreadyConnectedError
 from lerobot.robots.robot import Robot
+import numpy as np
+from scipy.spatial.transform import Rotation as R
 from pyDHgripper import PGE
 from .config_ur import URConfig
 
@@ -28,6 +30,15 @@ class UR(Robot):
         self._initial_pose = None
         self._prev_observation = None
         self._num_joints = 6
+        self.delta = 0.3
+        self.kp = 2000
+        self.kd = 1000
+        self.task_frame = [0, 0, 0, 0, 0, 0]
+        self.selection_vector = [1, 1, 1, 1, 1, 1]
+        self.force_type = 2
+        self.limits = [2, 2, 2, 2, 2, 2]
+        self.kp_rot = 4000
+        self.kd_rot = 800  
         self._gripper_force = 20
         self._left_gripper_position = 1
         self._right_gripper_position = 1
@@ -134,6 +145,17 @@ class UR(Robot):
             self._right_gripper.pos = gripper_pos
             time.sleep(0.01)
 
+    def compose_rotvec(current_rotvec: np.ndarray, delta_rotvec: np.ndarray) -> np.ndarray:
+        """
+        Apply a rotation increment to a current rotation vector.
+        """
+        r_current = R.from_rotvec(current_rotvec)
+        r_delta = R.from_rotvec(delta_rotvec)
+
+        r_target = r_delta * r_current
+
+        return r_target.as_rotvec()
+
     @property
     def _motors_ft(self) -> dict[str, type]:
         return {
@@ -164,27 +186,107 @@ class UR(Robot):
     @property
     def action_features(self) -> dict[str, type]:
         return {
-            **{f"left_joint_{i+1}.pos": float for i in range(self._num_joints)}, # left joint positions
-            **{"left_gripper_position": float}, # left gripper position
-            **{f"right_joint_{i+1}.pos": float for i in range(self._num_joints)}, # right joint positions
-            **{"right_gripper_position": float}, # right gripper position
+            **{f"left_joint_{i+1}.pos": float for i in range(self._num_joints)},
+            **{"left_gripper_position": float},
+            **{f"left_ee_delta_{axis}": float for axis in ["x", "y", "z", "rx", "ry", "rz"]},
+            **{f"right_joint_{i+1}.pos": float for i in range(self._num_joints)},
+            **{"right_gripper_position": float},
+            **{f"right_ee_delta_{axis}": float for axis in ["x", "y", "z", "rx", "ry", "rz"]},
         }
+
+    def _calculate_force(self, target_pose, current_pose, curr_vel):
+        kp, kd = self.kp, self.kd
+
+        # position PD
+        diff_p = np.clip(
+            np.array(target_pose[:3]) - np.array(current_pose[:3]),
+            -self.delta, self.delta
+        )
+
+        vel_delta = 2 * self.delta * 100
+        diff_d = np.clip(-np.array(curr_vel[:3]), -vel_delta, vel_delta)
+
+        force_pos = kp * diff_p + kd * diff_d
+
+        # rotation PD (rotvec)
+        r_target = R.from_rotvec(target_pose[3:])
+        r_current = R.from_rotvec(current_pose[3:])
+        rot_diff = r_target * r_current.inv()
+
+        rotvec = rot_diff.as_rotvec()
+
+        angle = np.linalg.norm(rotvec)
+        if angle > np.pi / 2:
+            rotvec = np.zeros(3)
+
+        vel_rot = -np.array(curr_vel[3:])
+
+        torque = (rotvec * self.kp_rot + vel_rot * self.kd_rot) / 100
+
+        return np.concatenate((force_pos, torque))
+    
+    def apply_delta_pose(self, pose, delta):
+        pos = np.array(pose[:3]) + np.array(delta[:3])
+
+        r_current = R.from_rotvec(pose[3:])
+        r_delta = R.from_rotvec(delta[3:])
+        r_target = (r_delta * r_current).as_rotvec()
+
+        return list(pos) + list(r_target)
 
     def send_action(self, action: dict[str, Any]) -> dict[str, Any]:
         if not self.is_connected:
             raise DeviceNotConnectedError(f"{self} is not connected.")
 
-        joint_positions = [
-            action[f"{arm}_joint_{i+1}.pos"] for arm in ["left", "right"] for i in range(self._num_joints)
-        ]
-        if not self.cfg.debug:       
-            t_start = self.arm["left_rtde_c"].initPeriod()
-            self.arm["left_rtde_c"].servoJ(joint_positions[:self._num_joints], self._velocity, self._acceleration, self.cfg.servo_time, self.cfg.lookahead_time, self.cfg.gain)
-            self.arm["left_rtde_c"].waitPeriod(t_start)
+        if not self.cfg.debug:
+            if self.cfg.control_space == "joint":
+                joint_positions = [action[f"{arm}_joint_{i+1}.pos"] for arm in ["left", "right"] for i in range(self._num_joints)]
 
-            t_start = self.arm["right_rtde_c"].initPeriod()
-            self.arm["right_rtde_c"].servoJ(joint_positions[self._num_joints:], self._velocity, self._acceleration, self.cfg.servo_time, self.cfg.lookahead_time, self.cfg.gain)
-            self.arm["right_rtde_c"].waitPeriod(t_start)
+                for idx, arm in enumerate(["left", "right"]):
+                    t_start = self.arm[f"{arm}_rtde_c"].initPeriod()
+                    self.arm[f"{arm}_rtde_c"].servoJ(joint_positions[idx*self._num_joints:(idx+1)*self._num_joints], self._velocity, self._acceleration, self.cfg.servo_time, self.cfg.lookahead_time, self.cfg.gain)
+                    self.arm[f"{arm}_rtde_c"].waitPeriod(t_start)
+
+            elif self.cfg.control_space == "cartesian":
+                delta_ee = [action[f"{arm}_ee_delta_{axis}"] for arm in ["left", "right"] for axis in ["x", "y", "z", "rx", "ry", "rz"]]
+
+                tcp_pose = {
+                    "left": self.arm["left_rtde_r"].getActualTCPPose(),
+                    "right": self.arm["right_rtde_r"].getActualTCPPose()
+                }
+
+                targets = {
+                    "left": self.apply_delta_pose(tcp_pose["left"], delta_ee[:6]),
+                    "right": self.apply_delta_pose(tcp_pose["right"], delta_ee[6:])
+                }
+
+                for arm in ["left", "right"]:
+                    t_start = self.arm[f"{arm}_rtde_c"].initPeriod()
+                    self.arm[f"{arm}_rtde_c"].servoL(targets[arm], self._velocity, self._acceleration, self.cfg.servo_time, self.cfg.lookahead_time, self.cfg.gain)
+                    self.arm[f"{arm}_rtde_c"].waitPeriod(t_start)
+
+            elif self.cfg.control_space == "force":
+                delta_ee = [action[f"{arm}_ee_delta_{axis}"] for arm in ["left", "right"] for axis in ["x", "y", "z", "rx", "ry", "rz"]]
+
+                tcp_pose = {
+                    "left": self.arm["left_rtde_r"].getActualTCPPose(),
+                    "right": self.arm["right_rtde_r"].getActualTCPPose()
+                }
+
+                targets = {
+                    "left": self.apply_delta_pose(tcp_pose["left"], delta_ee[:6]),
+                    "right": self.apply_delta_pose(tcp_pose["right"], delta_ee[6:])
+                }
+
+                forces = {
+                    "left": self._calculate_force(targets["left"], tcp_pose["left"], self._left_tcp_vel),
+                    "right": self._calculate_force(targets["right"], tcp_pose["right"], self._right_tcp_vel),
+                }
+
+                for arm in ["left", "right"]:
+                    t_start = self.arm[f"{arm}_rtde_c"].initPeriod()
+                    self.arm[f"{arm}_rtde_c"].forceMode(self.task_frame, self.selection_vector, forces[arm], self.force_type, self.limits)
+                    self.arm[f"{arm}_rtde_c"].waitPeriod(t_start)
 
         if "left_gripper_position" in action and "right_gripper_position" in action and self.cfg.use_gripper:
             self._left_gripper_position = action["left_gripper_position"]
@@ -215,10 +317,14 @@ class UR(Robot):
         # Read tcp pose
         left_tcp_pose = self.arm["left_rtde_r"].getActualTCPPose()
         right_tcp_pose = self.arm["right_rtde_r"].getActualTCPPose()
-
+        self._left_tcp_pose = left_tcp_pose
+        self._right_tcp_pose = right_tcp_pose
+        
         # Read tcp speed
         left_tcp_vel = self.arm["left_rtde_r"].getActualTCPSpeed()
         right_tcp_vel = self.arm["right_rtde_r"].getActualTCPSpeed()
+        self._left_tcp_vel = left_tcp_vel
+        self._right_tcp_vel = right_tcp_vel
 
         # Read tcp acceleration
         left_tcp_acc = self.arm["left_rtde_r"].getActualToolAccelerometer()

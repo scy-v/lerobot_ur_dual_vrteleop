@@ -75,7 +75,8 @@ class RecordConfig:
         self.gripper_reverse: bool = robot_gripper["gripper_reverse"]
         self.left_gripper_port: int = robot_gripper["left_gripper_port"]
         self.right_gripper_port: int = robot_gripper["right_gripper_port"]
-
+        self.control_space: str = robot.get("control_space", "joint") # can be "joint" or "cartesian"
+        
         # task config
         self.num_episodes: int = task.get("num_episodes", 1)
         self.display: bool = task.get("display", True)
@@ -208,7 +209,8 @@ def run_record(record_cfg: RecordConfig):
             close_threshold = record_cfg.close_threshold,
             use_gripper = record_cfg.use_gripper,
             gripper_reverse = record_cfg.gripper_reverse,
-            gripper_bin_threshold = record_cfg.gripper_bin_threshold
+            gripper_bin_threshold = record_cfg.gripper_bin_threshold,
+            control_space = record_cfg.control_space
         )
         # Initialize the robot and teleoperator
         robot = UR(robot_config)

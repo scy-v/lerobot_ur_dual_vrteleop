@@ -1,5 +1,5 @@
 record:
-  repo_id: &repo_id "scylearning/pick_test_tube_brush" #pick_test_tube_brush_and_clean_test_tube
+  repo_id: &repo_id "scylearning/test" #pick_test_tube_brush_and_clean_test_tube
   # repo_id: &repo_id "scylearning/pick_greencube_into_trashbin" 
   # Suggested format: <hf_username>/<description>, description = task.description -> Verb_SourceObject_prep_TargetObject
   # e.g. Pick up the green cube and put it into the trash bin -> pick_greencube_into_trashbin
@@ -10,11 +10,14 @@ record:
   robot:
     left_robot_ip: &left_ip "192.168.131.12" # robot_ip
     right_robot_ip: &right_ip "192.168.131.11" # robot_ip
+    # left_init_joints: [0.42725878953933716, -2.1260014973082484, -1.399522304534912, -3.0563417873778285, 4.630511283874512, 0.618490993976593] # left robot reset joint positions
     left_init_joints: [0.15039682388305664, -1.6110626659789027, -2.5577666759490967, -0.7846527856639405, 3.985585927963257, -0.21246177354921514] # left robot reset joint positions
     right_init_joints: [-0.13447505632509404, -1.5634546180120488, 2.659518305455343, -2.423399110833639, 2.339691638946533, 0.25420689582824707] # right robot reset joint positions
     servo_time: &servo_time 0.017
     gain: 300
     lookahead_time: 0.1
+    control_space: "joint"  # Control space: "joint", "cartesian", or "force". ("force" is experimental)
+
     gripper:
       use_gripper: &use_gripper True
       close_threshold: 0.7 # threshold to determine gripper open/close
@@ -25,7 +28,7 @@ record:
 
   teleop:
     control_mode: "vrteleop"
-    scale_factor: 0.8
+    scale_factor: 1 # 0.8
     R_headset_world: [-90, 0, 90]  # ZYX Euler angles in degrees
     robot:
       left_robot_ip: *left_ip
@@ -76,5 +79,5 @@ replay:
     gripper_reverse: *gripper_reverse
 
 visualize:
-  dataset_name: scylearning/pick_test_tube_brush_and_clean_test_tube_20251210_v01
-  episode_index: 30 # episode index to visualize
+  dataset_name: scylearning/test
+  episode_index: 0 # episode index to visualize

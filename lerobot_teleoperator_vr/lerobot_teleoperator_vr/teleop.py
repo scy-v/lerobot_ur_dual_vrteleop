@@ -39,13 +39,15 @@ logger.setLevel(logging.INFO)
 
 DEFAULT_MANIPULATOR_CONFIG = {
     "left_arm": {
-        "link_name": "left_tool0",
+        "base_link": "left_base",
+        "link_name": "left_tcp",
         "pose_source": "left_controller",
         "control_trigger": "left_grip",
         "gripper_trigger": "left_trigger",
     },
     "right_arm": {
-        "link_name": "right_tool0",
+        "base_link": "right_base",
+        "link_name": "right_tcp",
         "pose_source": "right_controller",
         "control_trigger": "right_grip",
         "gripper_trigger": "right_trigger",
@@ -78,6 +80,7 @@ class VRTeleop(Teleoperator):
         self._arm = {}
         self.effector_task = {}
         self.init_ee_xyz = {}
+        self.last_target_ee = {}
         self.init_ee_quat = {}
         self.init_controller_xyz = {}
         self.init_controller_quat = {}
@@ -85,6 +88,10 @@ class VRTeleop(Teleoperator):
         self._stop_event = threading.Event()
         self._last_left_trigger_val = 1.0
         self._last_right_trigger_val = 1.0
+        self.delta_xyz_left_base = np.zeros(3)
+        self.delta_rot_angle_axis_left_base = np.array([0.0, 0.0, 0.0])
+        self.delta_xyz_right_base = np.zeros(3)
+        self.delta_rot_angle_axis_right_base = np.array([0.0, 0.0, 0.0])
         self.manipulator_config = DEFAULT_MANIPULATOR_CONFIG
         self.R_headset_world = R.from_euler('ZYX', self.cfg.R_headset_world, degrees=True).as_matrix()
         self.robot_urdf_path = Path(__file__).parents[2] / self.cfg.robot_urdf_path
@@ -215,6 +222,38 @@ class VRTeleop(Teleoperator):
                 self.effector_task[name].T_world_frame,
             )
 
+    def _get_base_to_world_transform(self, base_link_name: str = "base_link"):
+        """
+        Get the transformation matrix from base_link_name to world link.
+        """
+        try:
+            T_world_base = self.placo_robot.get_T_world_frame(base_link_name)
+            return T_world_base
+        except Exception as e:
+            logger.error(f"Failed to get transformation for {base_link_name}: {e}")
+            return None
+        
+    def _reset_ee_pose(self):
+        self.delta_xyz_left_base = np.zeros(3)
+        self.delta_rot_angle_axis_left_base = np.array([0.0, 0.0, 0.0])
+        self.delta_xyz_right_base = np.zeros(3)
+        self.delta_rot_angle_axis_right_base = np.array([0.0, 0.0, 0.0])
+
+    def _update_arm_deltas(self, arm_name, target_xyz, target_quat):
+        delta_xyz = target_xyz - self.last_target_ee[arm_name][:3]
+        delta_rot_angle_axis = quat_diff_as_angle_axis(self.last_target_ee[arm_name][3:], target_quat)
+        self.last_target_ee[arm_name] = np.concatenate([target_xyz, target_quat])
+
+        base_name = self.manipulator_config[arm_name]["base_link"]
+        delta_xyz_attr = f"delta_xyz_{arm_name.split('_')[0]}_base"
+        delta_rot_attr = f"delta_rot_angle_axis_{arm_name.split('_')[0]}_base"
+
+        T_world_base = self._get_base_to_world_transform(base_name)
+        R_inv = T_world_base[:3, :3].T
+
+        setattr(self, delta_xyz_attr, R_inv @ delta_xyz)
+        setattr(self, delta_rot_attr, R_inv @ delta_rot_angle_axis)
+
     def _update_robot_qpos_from_xr(self):
         current_q_left_actual = self._arm["left_rtde_r"].getActualQ()
         current_q_right_actual = self._arm["right_rtde_r"].getActualQ()
@@ -273,13 +312,21 @@ class VRTeleop(Teleoperator):
                 target_transform[:3, 3] = target_xyz
                 self.effector_task[arm_name].T_world_frame = target_transform
 
+                if self.last_target_ee[arm_name] is None:
+                    self.last_target_ee[arm_name] = np.concatenate([target_xyz, target_quat])
+
+                if arm_name in ["left_arm", "right_arm"]:
+                    self._update_arm_deltas(arm_name, target_xyz, target_quat)
+
             else:  # Not active
                 if self.init_ee_xyz[arm_name] is not None:
                     # print(f"{arm_name} deactivated.")
                     self.init_ee_xyz[arm_name] = None
                     self.init_ee_quat[arm_name] = None
                     self.init_controller_xyz[arm_name] = None
+                    self.last_target_ee[arm_name] = None
                     self.init_controller_quat[arm_name] = None
+                    self._reset_ee_pose()
                     T_world_ee_current = self.placo_robot.get_T_world_frame(config["link_name"])
                     self.effector_task[arm_name].T_world_frame = T_world_ee_current
 
@@ -320,7 +367,6 @@ class VRTeleop(Teleoperator):
             ]
         )
         controller_xyz = self.R_headset_world @ controller_xyz
-
         R_transform = np.eye(4)
         R_transform[:3, :3] = self.R_headset_world
         R_quat = tf.quaternion_from_matrix(R_transform)
@@ -350,6 +396,10 @@ class VRTeleop(Teleoperator):
         for name in ["left", "right"]:
             for i in range(6):
                 action[f"{name}_joint_{i+1}.pos"] = self.target_left_q[i] if name == "left" else self.target_right_q[i]
+            for i, axis in enumerate(["x", "y", "z"]):
+                action[f"{name}_ee_delta_{axis}"] = self.delta_xyz_left_base[i] if name == "left" else self.delta_xyz_right_base[i]
+            for i, axis in enumerate(["rx", "ry", "rz"]):
+                action[f"{name}_ee_delta_{axis}"] = self.delta_rot_angle_axis_left_base[i] if name == "left" else self.delta_rot_angle_axis_right_base[i]
             action[f"{name}_gripper_position"] = self.left_gripper_pos if name == "left" else self.right_gripper_pos
         return action
 

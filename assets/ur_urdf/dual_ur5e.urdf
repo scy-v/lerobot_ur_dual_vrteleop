@@ -300,6 +300,13 @@
     <child link="right_tool0"/>
   </joint>
 
+  <link name="right_tcp"/>
+  <joint name="right_tool0-tcp" type="fixed">
+    <origin rpy="0 0 0" xyz="0 0 0.24"/>
+    <parent link="right_tool0"/>
+    <child link="right_tcp"/>
+  </joint>
+
   <!-- =================================================================================== -->
   <!-- |                              LEFT UR5e ARM                                      | -->
   <!-- =================================================================================== -->
@@ -594,6 +601,13 @@
     <origin rpy="1.5707963267948966 0 1.5707963267948966" xyz="0 0 0"/>
     <parent link="left_flange"/>
     <child link="left_tool0"/>
+  </joint>
+
+  <link name="left_tcp"/>
+  <joint name="left_tool0-tcp" type="fixed">
+    <origin rpy="0 0 0" xyz="0 0 0.24"/>
+    <parent link="left_tool0"/>
+    <child link="left_tcp"/>
   </joint>
 
 </robot>

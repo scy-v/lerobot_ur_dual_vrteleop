@@ -19,4 +19,5 @@ class URConfig(RobotConfig):
     gripper_bin_threshold: float = 0.98
     debug: bool = True
     close_threshold: float = 0.7
+    control_space: str = "joint"
     cameras: dict[str, CameraConfig] = field(default_factory=dict)
