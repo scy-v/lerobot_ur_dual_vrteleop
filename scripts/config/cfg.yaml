@@ -1,5 +1,5 @@
 record:
-  repo_id: &repo_id "scylearning/test" #pick_test_tube_brush_and_clean_test_tube
+  repo_id: &repo_id "scylearning/pick_test_tube_brush" #pick_test_tube_brush_and_clean_test_tube
   # repo_id: &repo_id "scylearning/pick_greencube_into_trashbin" 
   # Suggested format: <hf_username>/<description>, description = task.description -> Verb_SourceObject_prep_TargetObject
   # e.g. Pick up the green cube and put it into the trash bin -> pick_greencube_into_trashbin
@@ -79,5 +79,5 @@ replay:
     gripper_reverse: *gripper_reverse
 
 visualize:
-  dataset_name: scylearning/test
+  dataset_name: scylearning/pick_test_tube_brush_and_clean_test_tube_20251210_v01
   episode_index: 0 # episode index to visualize

