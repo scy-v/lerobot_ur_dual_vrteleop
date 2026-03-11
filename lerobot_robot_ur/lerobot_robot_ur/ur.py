@@ -234,6 +234,21 @@ class UR(Robot):
 
         return list(pos) + list(r_target)
 
+    def tcp_to_ee_pose(self, tcp_pose, tcp_offset):
+        T_tcp = np.eye(4)
+        T_tcp[:3,:3] = R.from_rotvec(tcp_pose[3:]).as_matrix()
+        T_tcp[:3,3] = tcp_pose[:3]
+
+        T_off = np.eye(4)
+        T_off[:3,:3] = R.from_rotvec(tcp_offset[3:]).as_matrix()
+        T_off[:3,3] = tcp_offset[:3]
+
+        T_ee = T_tcp @ np.linalg.inv(T_off)
+
+        ee_pos = T_ee[:3,3]
+        ee_rot = R.from_matrix(T_ee[:3,:3]).as_rotvec()
+        return np.concatenate([ee_pos, ee_rot])
+
     def send_action(self, action: dict[str, Any]) -> dict[str, Any]:
         if not self.is_connected:
             raise DeviceNotConnectedError(f"{self} is not connected.")
@@ -251,8 +266,8 @@ class UR(Robot):
                 delta_ee = [action[f"{arm}_ee_delta_{axis}"] for arm in ["left", "right"] for axis in ["x", "y", "z", "rx", "ry", "rz"]]
 
                 tcp_pose = {
-                    "left": self.arm["left_rtde_r"].getActualTCPPose(),
-                    "right": self.arm["right_rtde_r"].getActualTCPPose()
+                    "left": self._left_tcp_pose,
+                    "right": self._right_tcp_pose
                 }
 
                 targets = {
@@ -317,9 +332,14 @@ class UR(Robot):
         # Read tcp pose
         left_tcp_pose = self.arm["left_rtde_r"].getActualTCPPose()
         right_tcp_pose = self.arm["right_rtde_r"].getActualTCPPose()
+        left_tcp_offset = self.arm["left_rtde_c"].getTCPOffset()
+        right_tcp_offset = self.arm["right_rtde_c"].getTCPOffset()
         self._left_tcp_pose = left_tcp_pose
         self._right_tcp_pose = right_tcp_pose
-        
+        left_ee_pose = self.tcp_to_ee_pose(left_tcp_pose, left_tcp_offset)
+        right_ee_pose = self.tcp_to_ee_pose(right_tcp_pose, right_tcp_offset)
+
+
         # Read tcp speed
         left_tcp_vel = self.arm["left_rtde_r"].getActualTCPSpeed()
         right_tcp_vel = self.arm["right_rtde_r"].getActualTCPSpeed()
@@ -350,8 +370,8 @@ class UR(Robot):
             obs_dict[f"right_joint_{i+1}.frc"] = right_qfrc[i]
 
         for i, axis in enumerate(["x", "y", "z","rx","ry","rz"]):
-            obs_dict[f"left_tcp_pose.{axis}"] = left_tcp_pose[i]
-            obs_dict[f"right_tcp_pose.{axis}"] = right_tcp_pose[i]
+            obs_dict[f"left_tcp_pose.{axis}"] = left_ee_pose[i]
+            obs_dict[f"right_tcp_pose.{axis}"] = right_ee_pose[i]
             obs_dict[f"left_tcp_vel.{axis}"] = left_tcp_vel[i]
             obs_dict[f"right_tcp_vel.{axis}"] = right_tcp_vel[i]
             if i < 3: # tcp_acceleration have only 3 axes
