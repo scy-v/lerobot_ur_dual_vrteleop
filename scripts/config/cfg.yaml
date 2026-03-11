@@ -17,7 +17,8 @@ record:
     gain: 300
     lookahead_time: 0.1
     control_space: "joint"  # Control space: "joint", "cartesian", or "force". ("force" is experimental)
-
+                            # For Cartesian control with UR robots, to teleoperate around the TCP instead of the ee,
+                            # the left/right_tool0 → tcp transform in the URDF must match the TCP set on the teach pendant.
     gripper:
       use_gripper: &use_gripper True
       close_threshold: 0.7 # threshold to determine gripper open/close
