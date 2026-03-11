@@ -284,8 +284,8 @@ class UR(Robot):
                 delta_ee = [action[f"{arm}_ee_delta_{axis}"] for arm in ["left", "right"] for axis in ["x", "y", "z", "rx", "ry", "rz"]]
 
                 tcp_pose = {
-                    "left": self.arm["left_rtde_r"].getActualTCPPose(),
-                    "right": self.arm["right_rtde_r"].getActualTCPPose()
+                    "left": self._left_tcp_pose,
+                    "right": self._right_tcp_pose
                 }
 
                 targets = {
